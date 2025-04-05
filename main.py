@@ -4,9 +4,19 @@ import datetime
 import locale
 import webbrowser
 import requests
+from textblob import TextBlob
+from googletrans import Translator
+import spacy
 
 locale.setlocale(locale.LC_ALL, "Russian")
 API_KEY = "9303b20b05c95a33fed3ef81df34f36f"
+translator = Translator()
+nlp = spacy.load("ru_core_news_sm")
+
+# Функция лемматизации
+def lemmatize_text(text):
+    doc = nlp(text)
+    return " ".join([token.lemma_ for token in doc])
 
 def search(match):
     query = match.group(1)
@@ -65,15 +75,44 @@ responses = {
     r"погода в\s+(.+)": lambda m: get_weather(m.group(1))
 }
 
+def sentiment_response(text):
+    blob = TextBlob(text)
+    try:
+        translated_text = translator.translate(text, dest='en').text
+        polarity = TextBlob(translated_text).sentiment.polarity
+    except Exception:
+        polarity = blob.sentiment.polarity
+    if polarity > 0:
+        return random.choice([
+            "Ого, ты в хорошем настроении! Это радует!",
+            "Позитивчик ловлю от тебя!",
+            "Ты явно на волне позитива!"
+        ])
+    elif polarity < 0:
+        return random.choice([
+            "Что-то ты грустный... Давай я попробую поднять настроение!",
+            "Не грусти, всё наладится!",
+            "Чувствую негатив... Может, поговорим об этом?"
+        ])
+    else:
+        return random.choice([
+            "Нейтрально как-то... расскажи больше!",
+            "Ты в спокойном настроении — это тоже круто.",
+            "Хмм, звучит довольно ровно. Что ещё расскажешь?"
+        ])
+
 def chatbot_response(text):
-    text = text.lower()
+    original_text = text
+    text = lemmatize_text(text.lower())
+    sentiment_reply = sentiment_response(original_text)
+
     for pattern, response in responses.items():
         match = re.match(pattern, text)
         if match:
             if isinstance(response, list):
-                return random.choice(response)
-            return response(match) if callable(response) else response
-    return random.choice(["Я не понял вопрос.", "Попробуйте перефразировать."])
+                return f"{sentiment_reply}\n{random.choice(response)}"
+            return f"{sentiment_reply}\n{response(match) if callable(response) else response}"
+    return f"{sentiment_reply}\n{random.choice(['Я не понял вопрос.', 'Попробуйте перефразировать.'])}"
 
 if __name__ == "__main__":
     print("Введите 'выход' для завершения диалога.")
@@ -84,6 +123,7 @@ if __name__ == "__main__":
     with open("chat_log.txt", "a", encoding="utf-8") as log_file:
         while True:
             user_input = input("Вы: ")
+
             log_file.write(f"Пользователь: {user_input}\n")
 
             if user_input.lower() == "выход":
