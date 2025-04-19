@@ -6,7 +6,7 @@ import webbrowser
 import requests
 
 locale.setlocale(locale.LC_ALL, "Russian")
-API_KEY = "9303b20b05c95a33fed3ef81df34f36f"
+API_KEY = "апи_ключ"
 
 def search(match):
     query = match.group(1)
